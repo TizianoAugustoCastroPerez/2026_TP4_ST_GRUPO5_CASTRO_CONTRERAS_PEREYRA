@@ -33,7 +33,8 @@ DHT dht(DHTPIN, DHTTYPE);
 #define B1 35
 #define B2 34
 #define ESPERA_PULSO 30
-#define PARAMETRO_MILLIS 5000
+#define PARAMETRO_5S 5000
+#define PARAMETRO_SOLTAR 100
 #define pin_LED 26
 
 // Defines temperatura
@@ -46,7 +47,7 @@ unsigned long tiempoPulso;
 bool primerPulso;
 unsigned long desfasaje;
 int tiempoMillis;
-
+unsigned long tiempoSuelto;
 void setup() {  // se usa para definir pines de leds, el serial begin y se crea las tareas
   Serial.begin(115200);
 
@@ -66,6 +67,7 @@ void loop() {
   switch (estadoActual) {
     case (RST):
       tiempoPulso = 0;
+      tiempoSuelto = 0;
       primerPulso = false;
       temperatura = 0;
       umbral = 25;
@@ -79,8 +81,8 @@ void loop() {
       display.setTextSize(1);
       display.setTextColor(SSD1306_WHITE);
       display.setCursor(0, 0);
-      display.println("temperatura: " + String(temperatura) + " *C");
-      display.print("valor umbral: " + String(umbral) + " *C");
+      display.println("VA (valor actual) : " + String(temperatura) + " *C");
+      display.print("VU (valor umbral) : " + String(umbral) + " *C");
       display.display();
       if (digitalRead(B1) == LOW && primerPulso == false) {
         tiempoPulso = millis();
@@ -117,10 +119,7 @@ void loop() {
         } else if (digitalRead(B1) == HIGH && digitalRead(B2) == LOW) {
           tiempoPulso = millis();
           primerPulso = true;
-        } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-          tiempoPulso = millis();
-          primerPulso = true;
-        }
+        } 
       } else {
         if (millis() - tiempoPulso >= ESPERA_PULSO) {
           if (digitalRead(B1) == LOW && digitalRead(B2) == HIGH) {
@@ -129,9 +128,6 @@ void loop() {
           } else if (digitalRead(B1) == HIGH && digitalRead(B2) == LOW) {
             primerPulso = false;
             estadoActual = Bo2;
-          } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-            primerPulso = false;
-            estadoActual = Espera2;
           }
         } else {
           if (digitalRead(B1) == HIGH && digitalRead(B2) == HIGH) {
@@ -147,9 +143,6 @@ void loop() {
         if (digitalRead(B1) == HIGH) {
           tiempoPulso = millis();
           primerPulso = true;
-        } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-          tiempoPulso = millis();
-          primerPulso = true;
         }
       } else {
         if (millis() - tiempoPulso >= ESPERA_PULSO) {
@@ -157,12 +150,9 @@ void loop() {
             primerPulso = false;
             estadoActual = P2;
             umbral = umbral + 1;
-          } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-            primerPulso = false;
-            estadoActual = Espera6;
           }
         } else {
-          if (digitalRead(B1) == LOW && digitalRead(B2) == HIGH) {
+          if (digitalRead(B1) == LOW) {
             primerPulso = false;
           }
         }
@@ -175,22 +165,20 @@ void loop() {
         if (digitalRead(B2) == HIGH) {
           tiempoPulso = millis();
           primerPulso = true;
-        } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-          tiempoPulso = millis();
-          primerPulso = true;
         }
       } else {
+        if (digitalRead(B2) == LOW && millis() - tiempoPulso >= PARAMETRO_MILLIS) {
+          primerPulso = false;
+          estadoActual = P1;
+        }
         if (millis() - tiempoPulso >= ESPERA_PULSO) {
           if (digitalRead(B2) == HIGH) {
             primerPulso = false;
             estadoActual = P2;
             umbral = umbral - 1;
-          } else if (digitalRead(B1) == LOW && digitalRead(B2) == LOW) {
-            primerPulso = false;
-            estadoActual = Espera6;
-          }
+          } 
         } else {
-          if (digitalRead(B1) == HIGH && digitalRead(B2) == LOW) {
+          if (digitalRead(B2) == LOW) {
             primerPulso = false;
           }
         }
@@ -198,32 +186,26 @@ void loop() {
       break;
 
 
-    case (Espera2):
+    case (Espera1):
       display.clearDisplay();
       display.setTextSize(1);
       display.setTextColor(SSD1306_WHITE);
       display.setCursor(0, 0);
-      display.println("esperando a que se");
-      display.print("suelte el botón 1...");
+      display.println("esperando a que se mantenga");
+      display.print("el botón 1 por 5 segundos");
       display.display();
       tiempoMillis = millis() - desfasaje;
-      if (tiempoMillis >= PARAMETRO_MILLIS) {
-        estadoActual = P1;
+      if (digitalRead(B1) == LOW && tiempoMillis >= PARAMETRO_MILLIS) {
+        estadoActual = P2;
+        tiempoSuelto = 0;
       }
-      if (digitalRead(B1) == HIGH && primerPulso == false) {
-        tiempoPulso = millis();
-        primerPulso = true;
-      }
-      if (primerPulso == true) {
-        if (millis() - tiempoPulso >= ESPERA_PULSO) {
-          if (digitalRead(B1) == HIGH) {
-            primerPulso = false;
-            estadoActual = Espera2;
-          }
-        } else {
-          if (digitalRead(B1) == LOW) {
-            primerPulso = false;
-          }
+      else if (digitalRead(B1) == HIGH) {
+        if (inicioLiberacion == 0) {
+          inicioLiberacion = millis();
+        }
+        if (millis() - inicioLiberacion >= PARAMETRO_SOLTAR) {
+          inicioLiberacion = 0;
+          estadoActual = P1;
         }
       }
       break;
@@ -260,7 +242,7 @@ void loop() {
   if (!isnan(verificarTemperaturaNumerica)) {
     temperatura = verificarTemperaturaNumerica;
   }
-  if (umbral < temperatura) {
+  if (temperatura > umbral) {
     digitalWrite(pin_LED, HIGH);
   } else {
     digitalWrite(pin_LED, LOW);
