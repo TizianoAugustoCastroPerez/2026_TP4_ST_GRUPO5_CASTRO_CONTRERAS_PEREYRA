@@ -14,6 +14,7 @@ typedef enum {
   Bo1,
   Bo2,
   Espera,
+  Espera2,
 } estadoPrograma;
 estadoPrograma estadoActual = RST;
 
@@ -46,7 +47,6 @@ bool primerPulso;
 unsigned long tiempoPulso;
 unsigned long desfasaje;
 unsigned long tiempoMillis;
-unsigned long tiempoSuelto;
 unsigned long tiempoLiberacion;
 
 // Eeprom
@@ -74,7 +74,7 @@ void loop() {
   switch (estadoActual) {
     case (RST):
       tiempoPulso = 0;
-      tiempoSuelto = 0;
+      tiempoLiberacion = 0;
       primerPulso = false;
       temperatura = 0;
       umbral = almacenamiento.getInt("umbral", 25); // Se elige el valor guardado del umbral si hay, y si no un valor defecto
@@ -221,14 +221,41 @@ void loop() {
       tiempoMillis = millis() - desfasaje;
       if (digitalRead(B1) == LOW && tiempoMillis >= PARAMETRO_5S) {
         estadoActual = P2;
-        tiempoSuelto = 0;
+        tiempoLiberacion = 0;
       } else if (digitalRead(B1) == HIGH) {
         if (tiempoLiberacion == 0) {
           tiempoLiberacion = millis();
         }
         if (millis() - tiempoLiberacion >= PARAMETRO_SOLTAR) {
           tiempoLiberacion = 0;
-          estadoActual = P1;
+          estadoActual = Espera2;
+        }
+      }
+      break;
+
+
+    case (Espera2):
+      display.clearDisplay();
+      display.setTextSize(1);
+      display.setTextColor(SSD1306_WHITE);
+      display.setCursor(0, 0);
+      display.println("ya pasaron 5 segundos");
+      display.print("suelte el boton 1");
+      display.display();
+      if (digitalRead(B1) == HIGH && primerPulso == false) {
+        tiempoPulso = millis();
+        primerPulso = true;
+      }
+      if (primerPulso == true) {
+        if (millis() - tiempoPulso >= ESPERA_PULSO) {
+          if (digitalRead(B1) == HIGH) {
+            primerPulso = false;
+            estadoActual = P1;
+          }
+        } else {
+          if (digitalRead(B1) == LOW) {
+            primerPulso = false;
+          }
         }
       }
       break;
