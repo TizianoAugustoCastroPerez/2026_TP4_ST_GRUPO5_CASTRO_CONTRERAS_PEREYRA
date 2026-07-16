@@ -220,7 +220,7 @@ void loop() {
       display.display();
       tiempoMillis = millis() - desfasaje;
       if (digitalRead(B1) == LOW && tiempoMillis >= PARAMETRO_5S) {
-        estadoActual = P2;
+        estadoActual = Espera2;
         tiempoLiberacion = 0;
       } else if (digitalRead(B1) == HIGH) {
         if (tiempoLiberacion == 0) {
@@ -228,7 +228,7 @@ void loop() {
         }
         if (millis() - tiempoLiberacion >= PARAMETRO_SOLTAR) {
           tiempoLiberacion = 0;
-          estadoActual = Espera2;
+          estadoActual = P1;
         }
       }
       break;
@@ -250,7 +250,7 @@ void loop() {
         if (millis() - tiempoPulso >= ESPERA_PULSO) {
           if (digitalRead(B1) == HIGH) {
             primerPulso = false;
-            estadoActual = P1;
+            estadoActual = P2;
           }
         } else {
           if (digitalRead(B1) == LOW) {
